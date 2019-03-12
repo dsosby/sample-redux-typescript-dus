@@ -11,7 +11,7 @@ type Email = string;
 type Url = string;
 type ErrorMessage = string;
 
-interface IUser {
+export interface IUser {
     id: UserId;
     name: string;
     username: UserName;
