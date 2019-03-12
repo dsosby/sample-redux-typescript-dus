@@ -7,9 +7,16 @@
     "@types/node": "11.11.1",
     "@types/react": "16.8.7",
     "@types/react-dom": "16.8.2",
+    "axios": "^0.18.0",
+    "immutable": "^4.0.0-rc.12",
+    "office-ui-fabric-react": "^6.155.0",
     "react": "^16.8.4",
     "react-dom": "^16.8.4",
+    "react-redux": "^6.0.1",
     "react-scripts": "2.1.8",
+    "redux": "^4.0.1",
+    "redux-thunk": "^2.3.0",
+    "reselect": "^4.0.0",
     "typescript": "3.3.3333"
   },
   "scripts": {
