@@ -1,15 +1,14 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import axios from 'axios';
-import { Dispatch } from 'react';
 import { composeWithDevTools } from 'redux-devtools-extension';
+import { Delayed, NotStarted, Pending, Available, Error } from './Delayed';
 
 // Domain models
 type UserId = number;
 type UserName = string;
 type Email = string;
 type Url = string;
-type ErrorMessage = string;
 
 export interface IUser {
     id: UserId;
@@ -20,17 +19,6 @@ export interface IUser {
 }
 
 // DU models
-export interface IDelayedNotStarted { status: 'NotStarted' }
-export interface IDelayedPending { status: 'Pending' }
-export interface IDelayedAvailable<T> { status: 'Available'; value: T }
-export interface IDelayedError { status: 'Error'; message: ErrorMessage }
-// Constructors for DU types
-export const DelayedNotStarted = (): IDelayedNotStarted => ({ status: 'NotStarted' });
-export const DelayedPending = (): IDelayedPending => ({ status: 'Pending' });
-export const DelayedError = (message: ErrorMessage): IDelayedError => ({ status: 'Error', message });
-export function DelayedAvailable<T>(value: T): IDelayedAvailable<T> { return { status: 'Available', value }; };
-// DU for a delayed-load data set, e.g. result of a network load
-export type Delayed<T> = IDelayedNotStarted | IDelayedPending | IDelayedAvailable<T> | IDelayedError;
 
 // Action creators
 
@@ -55,7 +43,7 @@ export function removeUser(userId: UserId): Action {
 export function clearUsers(): Action {
     return {
         type: 'SET_USERS',
-        users: DelayedNotStarted()
+        users: NotStarted()
     };
 }
 
@@ -66,11 +54,11 @@ export function loadUsers(): AppThunkAction<any> {
         switch (getState().users.status) {
             case 'NotStarted':
             case 'Error':
-                dispatch(setUsers(DelayedPending()));
+                dispatch(setUsers(Pending()));
                 setTimeout(() => {
                     axios.get<IUser[]>('https://jsonplaceholder.typicode.com/users')
-                        .then(response => dispatch(setUsers(DelayedAvailable(response.data))))
-                        .catch(error => DelayedError(JSON.stringify(error)));
+                        .then(response => dispatch(setUsers(Available(response.data))))
+                        .catch(error => Error(JSON.stringify(error)));
                 }, 1000);
         }
     }
@@ -82,7 +70,7 @@ export interface IAppState {
 }
 
 const InitialAppState : IAppState = {
-    users: DelayedNotStarted()
+    users: NotStarted()
 }
 
 const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppState => {
@@ -97,7 +85,7 @@ const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppSta
             // Also of note, the status strings are autocompleted/type-checked
             if (state.users.status === 'Available') {
                 const updatedUserList = state.users.value.filter(user => user.id === action.userId);
-                return { ...state, ...{ users: DelayedAvailable(updatedUserList) }};
+                return { ...state, ...{ users: Available(updatedUserList) }};
             }
     }
 

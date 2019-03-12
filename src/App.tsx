@@ -1,6 +1,7 @@
 import React, { Component, FunctionComponent } from 'react';
 import { connect } from 'react-redux';
-import { IAppState, loadUsers, clearUsers, Delayed } from './store';
+import { Delayed } from './Delayed';
+import { IAppState, loadUsers, clearUsers } from './store';
 import { Button, DefaultButton } from 'office-ui-fabric-react';
 import { UserList } from './UserList';
 
