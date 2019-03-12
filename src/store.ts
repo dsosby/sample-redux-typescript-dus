@@ -2,11 +2,11 @@ import { createStore, applyMiddleware } from 'redux';
 import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import axios from 'axios';
 import { composeWithDevTools } from 'redux-devtools-extension';
-import { Delayed, NotStarted, Pending, Available, Error } from './Delayed';
+import { Delayed, NotStarted, Pending, Available, Error, ErrorMessage } from './Delayed';
 import { IUser, UserId } from './domain';
 
 // Action creators
-
+type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
 type Action =
     { type: 'SET_USERS'; users: Delayed<IUser[]> }
 |   { type: 'REMOVE_USER'; userId: UserId }
@@ -32,17 +32,20 @@ export function clearUsers(): Action {
     };
 }
 
-type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
-export function loadUsers(): AppThunkAction<any> {
+export function errorUsers(): AppThunkAction<any> {
+    return loadUsers('https://jsonplaceholder.typicode.com/nonexistent');
+}
+
+export function loadUsers(url: string = 'https://jsonplaceholder.typicode.com/users'): AppThunkAction<any> {
     return (dispatch, getState) => {
         switch (getState().users.status) {
             case 'NotStarted':
             case 'Error':
                 dispatch(setUsers(Pending()));
                 setTimeout(() => {
-                    axios.get<IUser[]>('https://jsonplaceholder.typicode.com/users')
+                    axios.get<IUser[]>(url)
                         .then(response => dispatch(setUsers(Available(response.data))))
-                        .catch(error => Error(JSON.stringify(error)));
+                        .catch(error => dispatch(setUsers(Error(`HTTP Error ${error.response.status}`))));
                 }, 1000);
         }
     }

@@ -1,5 +1,5 @@
-type ErrorMessage = string;
-type DelayedError = ErrorMessage;
+export type ErrorMessage = string;
+export type DelayedError = ErrorMessage;
 
 interface IDelayedNotStarted { status: 'NotStarted' }
 interface IDelayedPending { status: 'Pending' }

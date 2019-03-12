@@ -1,7 +1,6 @@
 import React, { Component, FunctionComponent } from 'react';
 import { connect } from 'react-redux';
-import { Delayed } from './Delayed';
-import { IAppState, loadUsers, clearUsers } from './store';
+import { IAppState, loadUsers, clearUsers, errorUsers } from './store';
 import { Button, DefaultButton } from 'office-ui-fabric-react';
 import { UserList } from './UserList';
 
@@ -13,7 +12,7 @@ const mapStateToProps = (state: IAppState) => {
   };
 };
 
-const mapDispatchToProps = { loadUsers, clearUsers };
+const mapDispatchToProps = { loadUsers, clearUsers, errorUsers };
 
 type IAppProps = ReturnType<typeof mapStateToProps> & typeof mapDispatchToProps;
 
@@ -23,16 +22,18 @@ const PageSplit: FunctionComponent<{}> = () => {
 
 class App extends Component<IAppProps> {
   render() {
-    const { clearUsers, loadUsers, users } = this.props;
-
-    let actionButton = users.status === 'Available'
+    const { users, clearUsers, loadUsers, errorUsers } = this.props;
+    let actionButtons = users.status === 'Available'
       ? <Button onClick={() => clearUsers()}>Clear users</Button>
-      : <DefaultButton onClick={() => loadUsers()}>Load users</DefaultButton>;
+      : <div className="actions">
+          <DefaultButton onClick={() => loadUsers()}>Load users</DefaultButton>
+          <Button onClick={() => errorUsers()}>Fake loading error</Button>
+        </div>;
 
     return (
       <div className="App">
         <header className="App-header">
-          {actionButton}
+          {actionButtons}
           <PageSplit></PageSplit>
           <UserList users={users} />
         </header>

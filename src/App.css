@@ -35,3 +35,7 @@
 div.pagesplit {
   height: 1rem;
 }
+
+div.actions button {
+  margin: 0 1rem;
+}
