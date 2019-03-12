@@ -45,10 +45,17 @@ function setUsers(users: Delayed<IUser[]>): Action {
     };
 }
 
-function removeUser(userId: UserId): Action {
+export function removeUser(userId: UserId): Action {
     return {
         type: 'REMOVE_USER',
         userId
+    };
+}
+
+export function clearUsers(): Action {
+    return {
+        type: 'SET_USERS',
+        users: DelayedNotStarted()
     };
 }
 
