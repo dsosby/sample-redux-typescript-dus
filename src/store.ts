@@ -1,5 +1,10 @@
-import { createStore } from 'redux';
+import { createStore, applyMiddleware } from 'redux';
+import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
+import axios from 'axios';
+import { Dispatch } from 'react';
+import { composeWithDevTools } from 'redux-devtools-extension';
 
+// Domain models
 type UserId = number;
 type UserName = string;
 type Email = string;
@@ -14,27 +19,62 @@ interface IUser {
     website?: Url;
 }
 
-interface IDelayedNotStarted { status: 'NotStarted' }
-interface IDelayedPending { status: 'Pending' }
-interface IDelayedAvailable<T> { status: 'Available'; value: T }
-interface IDelayedError { status: 'Error'; message: ErrorMessage }
-const DelayedNotStarted = (): IDelayedNotStarted => ({ status: 'NotStarted' });
-const DelayedPending = (): IDelayedPending => ({ status: 'Pending' });
-const DelayedError = (message: ErrorMessage): IDelayedError => ({ status: 'Error', message });
-function DelayedAvailable<T>(value: T): IDelayedAvailable<T> { return { status: 'Available', value }; };
-type Delayed<T> = IDelayedNotStarted | IDelayedPending | IDelayedAvailable<T> | IDelayedError;
+// DU models
+export interface IDelayedNotStarted { status: 'NotStarted' }
+export interface IDelayedPending { status: 'Pending' }
+export interface IDelayedAvailable<T> { status: 'Available'; value: T }
+export interface IDelayedError { status: 'Error'; message: ErrorMessage }
+// Constructors for DU types
+export const DelayedNotStarted = (): IDelayedNotStarted => ({ status: 'NotStarted' });
+export const DelayedPending = (): IDelayedPending => ({ status: 'Pending' });
+export const DelayedError = (message: ErrorMessage): IDelayedError => ({ status: 'Error', message });
+export function DelayedAvailable<T>(value: T): IDelayedAvailable<T> { return { status: 'Available', value }; };
+// DU for a delayed-load data set, e.g. result of a network load
+export type Delayed<T> = IDelayedNotStarted | IDelayedPending | IDelayedAvailable<T> | IDelayedError;
 
-interface IAppState {
+// Action creators
+
+export type Action =
+    { type: 'SET_USERS'; users: Delayed<IUser[]> }
+|   { type: 'REMOVE_USER'; userId: UserId }
+
+function setUsers(users: Delayed<IUser[]>): Action {
+    return {
+        type: 'SET_USERS',
+        users
+    };
+}
+
+function removeUser(userId: UserId): Action {
+    return {
+        type: 'REMOVE_USER',
+        userId
+    };
+}
+
+type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
+type AppThunkDispatch = ThunkDispatch<IAppState, undefined, Action>;
+export function loadUsers(): AppThunkAction<any> {
+    return (dispatch, getState) => {
+        switch (getState().users.status) {
+            case 'NotStarted':
+            case 'Error':
+                dispatch(setUsers(DelayedPending()));
+                axios.get<IUser[]>('https://jsonplaceholder.typicode.com/users')
+                    .then(response => dispatch(setUsers(DelayedAvailable(response.data))))
+                    .catch(error => DelayedError(JSON.stringify(error)));
+        }
+    }
+}
+
+// App State
+export interface IAppState {
     users: Delayed<IUser[]>
 }
 
 const InitialAppState : IAppState = {
     users: DelayedNotStarted()
 }
-
-export type Action =
-    { type: 'SET_USERS'; users: Delayed<IUser[]> }
-|   { type: 'REMOVE_USER'; userId: UserId }
 
 const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppState => {
     switch (action.type) {
@@ -55,4 +95,6 @@ const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppSta
     return state;
 }
 
-let store = createStore<IAppState, Action, {}, {}>(AppReducer);
+const middleware = [thunk];
+let store = createStore<IAppState, Action, {}, {}>(AppReducer, InitialAppState, composeWithDevTools(applyMiddleware(...middleware)));
+export default store;
