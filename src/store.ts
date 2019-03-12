@@ -7,7 +7,7 @@ import { IUser, UserId } from './domain';
 
 // Action creators
 
-export type Action =
+type Action =
     { type: 'SET_USERS'; users: Delayed<IUser[]> }
 |   { type: 'REMOVE_USER'; userId: UserId }
 
@@ -33,7 +33,6 @@ export function clearUsers(): Action {
 }
 
 type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
-type AppThunkDispatch = ThunkDispatch<IAppState, undefined, Action>;
 export function loadUsers(): AppThunkAction<any> {
     return (dispatch, getState) => {
         switch (getState().users.status) {
