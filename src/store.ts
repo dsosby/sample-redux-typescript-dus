@@ -60,9 +60,11 @@ export function loadUsers(): AppThunkAction<any> {
             case 'NotStarted':
             case 'Error':
                 dispatch(setUsers(DelayedPending()));
-                axios.get<IUser[]>('https://jsonplaceholder.typicode.com/users')
-                    .then(response => dispatch(setUsers(DelayedAvailable(response.data))))
-                    .catch(error => DelayedError(JSON.stringify(error)));
+                setTimeout(() => {
+                    axios.get<IUser[]>('https://jsonplaceholder.typicode.com/users')
+                        .then(response => dispatch(setUsers(DelayedAvailable(response.data))))
+                        .catch(error => DelayedError(JSON.stringify(error)));
+                }, 1000);
         }
     }
 }
