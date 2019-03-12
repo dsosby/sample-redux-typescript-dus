@@ -41,13 +41,14 @@ const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppSta
         case 'SET_USERS':
             return { ...state, ...{ users: action.users } };
         case 'REMOVE_USER':
-            switch (state.users.status) {
-                case 'Available':
-                    const updatedUserList = state.users.value.filter(user => user.id === action.userId);
-                    return { ...state, ...{ users: DelayedAvailable(updatedUserList) }};
-                default:
-                    // Can't remove users that aren't yet loaded
-                    return state;
+            // Note that developers can't access the current user list (state.users.value)
+            // until its availability state is confirmed. This makes it apparent that
+            // other cases should be handled as well (what if we remove users while the
+            // network load is still pending?)
+            // Also of note, the status strings are autocompleted/type-checked
+            if (state.users.status === 'Available') {
+                const updatedUserList = state.users.value.filter(user => user.id === action.userId);
+                return { ...state, ...{ users: DelayedAvailable(updatedUserList) }};
             }
     }
 
