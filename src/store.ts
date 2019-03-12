@@ -3,22 +3,7 @@ import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import axios from 'axios';
 import { composeWithDevTools } from 'redux-devtools-extension';
 import { Delayed, NotStarted, Pending, Available, Error } from './Delayed';
-
-// Domain models
-type UserId = number;
-type UserName = string;
-type Email = string;
-type Url = string;
-
-export interface IUser {
-    id: UserId;
-    name: string;
-    username: UserName;
-    email: Email;
-    website?: Url;
-}
-
-// DU models
+import { IUser, UserId } from './domain';
 
 // Action creators
 

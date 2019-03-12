@@ -1,7 +1,7 @@
 import React, { FunctionComponent } from 'react';
 import { IColumn } from 'office-ui-fabric-react/lib/DetailsList';
 import { ShimmeredDetailsList } from 'office-ui-fabric-react/lib/ShimmeredDetailsList';
-import { IUser } from './store';
+import { IUser } from './domain';
 import { Delayed } from './Delayed';
 
 type DelayedUserList = Delayed<IUser[]>;
@@ -45,6 +45,6 @@ export const UserList: FunctionComponent<IUserListProps> = (props) => {
                                          items={items}
                                          columns={UserColumns}></ShimmeredDetailsList>
     }
-}
+};
 
 export default UserList;
