@@ -12,7 +12,7 @@ interface IUserListProps {
 const getStatusString = (users: DelayedUserList): string => {
     switch (users.status) {
         case 'Available': return `Fetched ${users.value.length} users`;
-        case 'Error': return `Error: ${users.message}`;
+        case 'Error': return `Error: ${users.error}`;
         case 'NotStarted': return `Click load`;
         case 'Pending': return `Loading`;
     }
@@ -34,8 +34,8 @@ export const UserList: FunctionComponent<IUserListProps> = (props) => {
     const { users } = props;
 
     switch (users.status) {
-        case 'NotStarted': return <div>Click load</div>;
-        case 'Error': return <div>An error occurred: {users.message}</div>
+        case 'NotStarted': return <div></div>;
+        case 'Error': return <div>An error occurred: {users.error}</div>
         case 'Pending':
         case 'Available':
             const enableShimmer = (users.status === 'Pending');
