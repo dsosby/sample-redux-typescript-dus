@@ -1,9 +1,26 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
-import axios from 'axios';
+import axios, { AxiosPromise } from 'axios';
 import { composeWithDevTools } from 'redux-devtools-extension';
 import { Delayed, NotStarted, Pending, Available, Error, ErrorMessage } from './Delayed';
-import { IUser, UserId } from './domain';
+import { IUser, IUserPage, UserId } from './domain';
+import { paginate, PaginateResult } from './pagination';
+
+// Fake a pagination over a URL providing full collection
+const getPaginatedUsers = (url: string, continuationToken?: string): Promise<PaginateResult<IUser>> => {
+    const pageSize = 3;
+    return new Promise((resolve, reject) => {
+        axios.get<IUser[]>(url)
+            .then(response => resolve(paginate(response.data, pageSize, continuationToken)))
+            .catch(error => reject(Error(`HTTP Error ${error.response.status}`)));
+    });
+}
+
+type UsersPage = IPageableDelayed<IUser[], string>;
+const UsersPage = (values: IUser[], continuationToken?: string): UsersPage => ({
+    values,
+    continuation: continuationToken ? 
+});
 
 // Action creators
 type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
@@ -43,7 +60,8 @@ export function loadUsers(url: string = 'https://jsonplaceholder.typicode.com/us
             case 'Error':
                 dispatch(setUsers(Pending()));
                 setTimeout(() => {
-                    axios.get<IUser[]>(url)
+                    getPaginatedUsers(url)
+                        .then(usersPage => setUsers(Available({ values: usersPage.values, continuation: })))
                         .then(response => dispatch(setUsers(Available(response.data))))
                         .catch(error => dispatch(setUsers(Error(`HTTP Error ${error.response.status}`))));
                 }, 1000);
@@ -51,9 +69,19 @@ export function loadUsers(url: string = 'https://jsonplaceholder.typicode.com/us
     }
 }
 
+export function loadMoreUsers(): AppThunkAction<any> {
+    return (dispatch, getState) => {
+        const { users } = getState();
+        switch (users.status) {
+            case 'Available':
+                const offset = users.value.
+        }
+    }
+}
+
 // App State
 export interface IAppState {
-    users: Delayed<IUser[]>
+    users: Delayed<IPageableDelayed<IUser[], IUserPage>>
 }
 
 const InitialAppState : IAppState = {

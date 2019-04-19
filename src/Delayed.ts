@@ -14,3 +14,7 @@ export function Available<T>(value: T): IDelayedAvailable<T> { return { status: 
 
 // DU for a delayed-load data set, e.g. result of a network load
 export type Delayed<T> = IDelayedNotStarted | IDelayedPending | IDelayedAvailable<T> | IDelayedError;
+export type Updateable<T> = {
+    value: T;
+    updateState: Delayed<void>;
+}
