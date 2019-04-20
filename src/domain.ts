@@ -11,3 +11,14 @@ export interface IUser {
     email: Email;
     website?: Url;
 }
+
+export type PageHasMore = {
+    continuationToken: string;
+    hasMore: true;
+}
+
+export type PageHasNoMore = {
+    hasMore: false;
+}
+
+export type Page<T> = { values: T[] } & (PageHasNoMore | PageHasMore);

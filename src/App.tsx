@@ -1,6 +1,7 @@
 import React, { Component, FunctionComponent } from 'react';
 import { connect } from 'react-redux';
-import { IAppState, loadUsers, clearUsers, errorUsers } from './store';
+import { IAppState, loadUsers, loadMoreUsers, clearUsers, errorUsers, hasMoreUsers, isLoadingMoreUsers } from './store';
+import { Project } from './Delayed';
 import { Button, DefaultButton } from 'office-ui-fabric-react';
 import { UserList } from './UserList';
 
@@ -8,11 +9,13 @@ import './App.css';
 
 const mapStateToProps = (state: IAppState) => {
   return {
-    users: state.users
+    users: Project(state.users, paginatedUsers => paginatedUsers.loaded),
+    hasMoreUsers: hasMoreUsers(state),
+    isLoadingMoreUsers: isLoadingMoreUsers(state)
   };
 };
 
-const mapDispatchToProps = { loadUsers, clearUsers, errorUsers };
+const mapDispatchToProps = { loadUsers, loadMoreUsers, clearUsers, errorUsers };
 
 type IAppProps = ReturnType<typeof mapStateToProps> & typeof mapDispatchToProps;
 
@@ -22,7 +25,16 @@ const PageSplit: FunctionComponent<{}> = () => {
 
 class App extends Component<IAppProps> {
   render() {
-    const { users, clearUsers, loadUsers, errorUsers } = this.props;
+    const {
+      users,
+      clearUsers,
+      loadUsers,
+      errorUsers,
+      hasMoreUsers,
+      loadMoreUsers,
+      isLoadingMoreUsers
+    } = this.props;
+
     let actionButtons = users.status === 'Available'
       ? <Button onClick={() => clearUsers()}>Clear users</Button>
       : <div className="actions">
@@ -36,6 +48,7 @@ class App extends Component<IAppProps> {
           {actionButtons}
           <PageSplit></PageSplit>
           <UserList users={users} />
+          { hasMoreUsers && <Button onClick={() => loadMoreUsers()} disabled={isLoadingMoreUsers}>Load More</Button> }
         </header>
       </div>
     );
