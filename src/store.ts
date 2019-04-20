@@ -2,7 +2,7 @@ import { createStore, applyMiddleware } from 'redux';
 import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import axios, { AxiosPromise } from 'axios';
 import { composeWithDevTools } from 'redux-devtools-extension';
-import { Delayed, NotStarted, Pending, Available, Error, ErrorMessage, Updateable } from './Delayed';
+import { Delayed, NotStarted, Pending, Available, Error, OnlyStatus, Updateable } from './Delayed';
 import { IUser } from './domain';
 import { mergePaginateResults, paginate, PaginateResult } from './pagination';
 
@@ -114,9 +114,21 @@ const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppSta
         case 'SET_USERS':
             return { ...state, ...{ users: action.users } };
         case 'UPDATE_USERS':
-            // Could check for state.users.status === 'Available' if we want to avoid create on update
-            // Let's just allow it in this example case
-            return { ...state, ...{ users: Available(action.update) }};
+            // Updates have several choices for implementation:
+            //  - block create on update by asserting state.users.status === 'Available'
+            //  - whether to maintain existing value during the update by overwriting the updateable value
+            if (state.users.status === 'Available') {
+                const update = action.update;
+                switch (update.status) {
+                    case 'Available':
+                        // New data available - overwrite everything
+                        return { ...state, ...{ users: Available(Updateable(update.value)) }};
+                    default:
+                        // Don't overwrite data while we update status
+                        return { ...state, ...{ users: Available(Updateable(state.users.value.value, OnlyStatus(update))) }};
+                }
+            }
+
     }
 
     return state;

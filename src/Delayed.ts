@@ -19,7 +19,7 @@ export type Updateable<T> = {
 }
 
 // Factories
-function Available<T>(value: T): IDelayedAvailable<T> { return { status: 'Available', value }; };
+export function Available<T>(value: T): IDelayedAvailable<T> { return { status: 'Available', value }; };
 export function Updateable<T>(value: T, updateState: Delayed<void> = NotStarted()): Updateable<T> { return { value, updateState }};
 export function OnlyStatus<T>(delayed: Delayed<T>): Delayed<void> {
     switch (delayed.status) {
