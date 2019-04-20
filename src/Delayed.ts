@@ -1,3 +1,5 @@
+import { values } from "@uifabric/utilities";
+
 export type ErrorMessage = string;
 export type DelayedError = ErrorMessage;
 
@@ -12,20 +14,17 @@ export const Pending = (): IDelayedPending => ({ status: 'Pending' });
 export const Error = (error: DelayedError): IDelayedError => ({ status: 'Error', error});
 
 // DU for a delayed-load data set, e.g. result of a network load
+export type Update = IDelayedNotStarted | IDelayedPending | IDelayedError;
 export type Delayed<T> = IDelayedNotStarted | IDelayedPending | IDelayedAvailable<T> | IDelayedError;
-export type Updateable<T> = {
-    value: T;
-    updateState: Delayed<void>;
+export type Updatable = {
+    update: Update;
 }
 
 // Factories
 export function Available<T>(value: T): IDelayedAvailable<T> { return { status: 'Available', value }; };
-export function Updateable<T>(value: T, updateState: Delayed<void> = NotStarted()): Updateable<T> { return { value, updateState }};
-export function OnlyStatus<T>(delayed: Delayed<T>): Delayed<void> {
-    switch (delayed.status) {
-        case 'Available':
-            return Available(undefined);
-        default:
-            return delayed;
-    }
+export function Updatable<T>(value: T, update: Update = NotStarted()): Updatable & T { return { ...value, update }};
+export function Project<T,S>(delayed: Delayed<T>, projectFn: (value: T) => S ): Delayed<S> {
+    return delayed.status === 'Available'
+        ? Available(projectFn(delayed.value))
+        : { ...delayed };
 }

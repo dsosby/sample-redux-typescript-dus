@@ -2,26 +2,26 @@ import { createStore, applyMiddleware } from 'redux';
 import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import axios, { AxiosPromise } from 'axios';
 import { composeWithDevTools } from 'redux-devtools-extension';
-import { Delayed, NotStarted, Pending, Available, Error, OnlyStatus, Updateable } from './Delayed';
+import { Delayed, NotStarted, Pending, Available, Error, Updatable } from './Delayed';
 import { IUser } from './domain';
-import { mergePaginateResults, paginate, PaginateResult } from './pagination';
+import { paginate, Paginated, mergePages } from './pagination';
 
 // Fake a pagination over a URL providing full collection
-const getPaginatedUsers = (url: string, continuationToken?: string): Promise<PaginateResult<IUser>> => {
+const getPaginatedUsers = (url: string, continuationToken?: string): Promise<Paginated<IUser>> => {
     const pageSize = 3;
     return new Promise((resolve, reject) => {
         // Fake latency so we can see Pending state
         setTimeout(() => {
             axios.get<IUser[]>(url)
                 .then(response => resolve(paginate(response.data, pageSize, continuationToken)))
-                .catch(error => reject(Error(`HTTP Error ${error.response.status}`)));
+                .catch(error => reject(`HTTP Error ${error.response.status}`));
         }, 1000);
     });
 }
 
 // App State
-type UsersPage = Updateable<PaginateResult<IUser>>;
-type UsersState = Delayed<UsersPage>;
+type Users = Paginated<IUser> & Updatable;
+type UsersState = Delayed<Users>;
 
 export interface IAppState {
     users: UsersState;
@@ -32,13 +32,14 @@ const InitialAppState : IAppState = {
 }
 
 // Selectors
-const hasMoreUsers = (state: IAppState): boolean => {
+export const hasMoreUsers = (state: IAppState): boolean => {
     return state.users.status === 'Available'
-        && state.users.value.value.hasMore;
+        && state.users.value.hasMore;
 }
-const isLoadingMoreUsers = (state: IAppState): boolean => {
+export const isLoadingMoreUsers = (state: IAppState): boolean => {
     return state.users.status === 'Available'
-        && state.users.value.updateState.status === 'Pending';
+        && !!state.users.value.update
+        && state.users.value.update.status === 'Pending';
 }
 
 
@@ -46,7 +47,7 @@ const isLoadingMoreUsers = (state: IAppState): boolean => {
 type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
 type Action =
     { type: 'SET_USERS'; users: UsersState } |
-    { type: 'UPDATE_USERS'; update: Delayed<PaginateResult<IUser>> }
+    { type: 'UPDATE_USERS'; update: Delayed<Paginated<IUser>> }
 
 function setUsers(users: UsersState): Action {
     return {
@@ -55,7 +56,7 @@ function setUsers(users: UsersState): Action {
     };
 }
 
-function updateUsers(update: Delayed<PaginateResult<IUser>>): Action {
+function updateUsers(update: Delayed<Paginated<IUser>>): Action {
     return {
         type: 'UPDATE_USERS',
         update
@@ -83,8 +84,8 @@ export function loadUsers(url: string = UsersUrl): AppThunkAction<any> {
             case 'Error':
                 dispatch(setUsers(Pending()));
                 getPaginatedUsers(url)
-                    .then(usersPage => dispatch(setUsers(Available(Updateable(usersPage)))))
-                    .catch(error => dispatch(setUsers(Error(`HTTP Error ${error.response.status}`))));
+                    .then(usersPage => dispatch(setUsers(Available(Updatable(usersPage)))))
+                    .catch(error => dispatch(setUsers(Error(error))));
         }
     }
 }
@@ -94,16 +95,15 @@ export function loadMoreUsers(): AppThunkAction<any> {
         const state = getState();
         const { users } = state;
 
-        if (users.status === 'Available') {
-            // Can only do something if the first page is loaded
-            if (hasMoreUsers(state) && !isLoadingMoreUsers(state)) {
+        // Check if we can load more (has to be done to get continuation token)
+        if (users.status === 'Available' && users.value.hasMore) {
+            // Disallow duplicate requests
+            if (users.value.update.status !== 'Pending') {
+                const continuationToken = users.value.continuationToken;
                 dispatch(updateUsers(Pending()));
-                getPaginatedUsers(UsersUrl)
-                    .then(nextPage => {
-                        const updatedUsers = mergePaginateResults(users.value.value, nextPage);
-                        dispatch(updateUsers(Available(updatedUsers)));
-                    })
-                    .catch(error => dispatch(updateUsers(Error(`HTTP Error ${error.response.status}`))));
+                getPaginatedUsers(UsersUrl, continuationToken)
+                    .then(nextPage => dispatch(updateUsers(Available(nextPage))))
+                    .catch(error => dispatch(updateUsers(Error(error))));
             }
         }
     }
@@ -116,16 +116,18 @@ const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppSta
         case 'UPDATE_USERS':
             // Updates have several choices for implementation:
             //  - block create on update by asserting state.users.status === 'Available'
-            //  - whether to maintain existing value during the update by overwriting the updateable value
+            //  - decide to maintain existing value during the update by overwriting the updateable value
             if (state.users.status === 'Available') {
                 const update = action.update;
                 switch (update.status) {
                     case 'Available':
-                        // New data available - overwrite everything
-                        return { ...state, ...{ users: Available(Updateable(update.value)) }};
+                        // New page of data available... merge it on
+                        const updatedPage = mergePages(state.users.value, update.value);
+                        return { ...state, ...{ users: Available(Updatable(updatedPage)) } };
                     default:
-                        // Don't overwrite data while we update status
-                        return { ...state, ...{ users: Available(Updateable(state.users.value.value, OnlyStatus(update))) }};
+                        // Maintain existing value and only update the "update" status
+                        const existingPage = state.users.value;
+                        return { ...state, ...{ users: Available(Updatable(existingPage, update )) }};
                 }
             }
 

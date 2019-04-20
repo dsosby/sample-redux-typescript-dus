@@ -1,17 +1,17 @@
-export type PaginateResultMoreAvailable = {
+export type PaginatedHasMore = {
     continuationToken: string;
     hasMore: true;
 }
 
-export type PaginateResultNoMoreAvailable = {
+export type PaginatedHasNoMore = {
     hasMore: false;
 }
 
-export type PaginateResult<T> = { values: T[] } & (PaginateResultNoMoreAvailable | PaginateResultMoreAvailable);
+export type Paginated<T> = { loaded: T[] } & (PaginatedHasMore | PaginatedHasNoMore);
 
-export function mergePaginateResults<T>(existingPage: PaginateResult<T>, newPage: PaginateResult<T>): PaginateResult<T> {
-    const values = existingPage.values.concat(...newPage.values);
-    return { ...newPage, values };
+export function mergePages<T>(existingPage: Paginated<T>, newPage: Paginated<T>): Paginated<T> {
+    const loaded = existingPage.loaded.concat(...newPage.loaded);
+    return { ...newPage, loaded };
 }
 
 /**
@@ -21,19 +21,19 @@ export function mergePaginateResults<T>(existingPage: PaginateResult<T>, newPage
  * @param pageSize Page size requested for next request
  * @param continuationToken Continuation token returned from a previous paginate request
  */
-export function paginate<T>(values: T[], pageSize: number, continuationToken?: string): PaginateResult<T> {
+export function paginate<T>(values: T[], pageSize: number, continuationToken?: string): Paginated<T> {
     const start = continuationToken ? Number(continuationToken) : 0;
     const end = Math.min(start + pageSize, values.length);
     const pageValues = values.slice(start, end);
 
     if (end === values.length) {
         return {
-            values: pageValues,
+            loaded: pageValues,
             hasMore: false
         };
     } else {
         return {
-            values: pageValues,
+            loaded: pageValues,
             hasMore: true,
             continuationToken: `${end}`
         };
