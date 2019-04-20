@@ -12,13 +12,13 @@ export interface IUser {
     website?: Url;
 }
 
-export type UserPageHasMore = {
+export type PageHasMore = {
     continuationToken: string;
     hasMore: true;
 }
 
-export type UserPageNoMore = {
+export type PageHasNoMore = {
     hasMore: false;
 }
 
-export type UserPage = UserPageHasMore | UserPageNoMore;
+export type Page<T> = { values: T[] } & (PageHasNoMore | PageHasMore);

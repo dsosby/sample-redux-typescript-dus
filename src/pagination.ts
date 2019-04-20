@@ -1,15 +1,18 @@
-export type PaginateResultMoreAvailable<T> = {
-    values: T[];
+export type PaginateResultMoreAvailable = {
     continuationToken: string;
     hasMore: true;
 }
 
-export type PaginateResultNoMoreAvailable<T> = {
-    values: T[];
+export type PaginateResultNoMoreAvailable = {
     hasMore: false;
 }
 
-export type PaginateResult<T> = PaginateResultNoMoreAvailable<T> | PaginateResultMoreAvailable<T>;
+export type PaginateResult<T> = { values: T[] } & (PaginateResultNoMoreAvailable | PaginateResultMoreAvailable);
+
+export function mergePaginateResults<T>(existingPage: PaginateResult<T>, newPage: PaginateResult<T>): PaginateResult<T> {
+    const values = existingPage.values.concat(...newPage.values);
+    return { ...newPage, values };
+}
 
 /**
  * Sample pagination of a given resource collection.

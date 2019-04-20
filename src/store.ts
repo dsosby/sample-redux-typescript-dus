@@ -2,43 +2,63 @@ import { createStore, applyMiddleware } from 'redux';
 import thunk, { ThunkAction, ThunkDispatch } from 'redux-thunk';
 import axios, { AxiosPromise } from 'axios';
 import { composeWithDevTools } from 'redux-devtools-extension';
-import { Delayed, NotStarted, Pending, Available, Error, ErrorMessage } from './Delayed';
-import { IUser, IUserPage, UserId } from './domain';
-import { paginate, PaginateResult } from './pagination';
+import { Delayed, NotStarted, Pending, Available, Error, ErrorMessage, Updateable } from './Delayed';
+import { IUser } from './domain';
+import { mergePaginateResults, paginate, PaginateResult } from './pagination';
 
 // Fake a pagination over a URL providing full collection
 const getPaginatedUsers = (url: string, continuationToken?: string): Promise<PaginateResult<IUser>> => {
     const pageSize = 3;
     return new Promise((resolve, reject) => {
-        axios.get<IUser[]>(url)
-            .then(response => resolve(paginate(response.data, pageSize, continuationToken)))
-            .catch(error => reject(Error(`HTTP Error ${error.response.status}`)));
+        // Fake latency so we can see Pending state
+        setTimeout(() => {
+            axios.get<IUser[]>(url)
+                .then(response => resolve(paginate(response.data, pageSize, continuationToken)))
+                .catch(error => reject(Error(`HTTP Error ${error.response.status}`)));
+        }, 1000);
     });
 }
 
-type UsersPage = IPageableDelayed<IUser[], string>;
-const UsersPage = (values: IUser[], continuationToken?: string): UsersPage => ({
-    values,
-    continuation: continuationToken ? 
-});
+// App State
+type UsersPage = Updateable<PaginateResult<IUser>>;
+type UsersState = Delayed<UsersPage>;
+
+export interface IAppState {
+    users: UsersState;
+}
+
+const InitialAppState : IAppState = {
+    users: NotStarted()
+}
+
+// Selectors
+const hasMoreUsers = (state: IAppState): boolean => {
+    return state.users.status === 'Available'
+        && state.users.value.value.hasMore;
+}
+const isLoadingMoreUsers = (state: IAppState): boolean => {
+    return state.users.status === 'Available'
+        && state.users.value.updateState.status === 'Pending';
+}
+
 
 // Action creators
 type AppThunkAction<T> = ThunkAction<T, IAppState, undefined, Action>;
 type Action =
-    { type: 'SET_USERS'; users: Delayed<IUser[]> }
-|   { type: 'REMOVE_USER'; userId: UserId }
+    { type: 'SET_USERS'; users: UsersState } |
+    { type: 'UPDATE_USERS'; update: Delayed<PaginateResult<IUser>> }
 
-function setUsers(users: Delayed<IUser[]>): Action {
+function setUsers(users: UsersState): Action {
     return {
         type: 'SET_USERS',
         users
     };
 }
 
-export function removeUser(userId: UserId): Action {
+function updateUsers(update: Delayed<PaginateResult<IUser>>): Action {
     return {
-        type: 'REMOVE_USER',
-        userId
+        type: 'UPDATE_USERS',
+        update
     };
 }
 
@@ -49,59 +69,54 @@ export function clearUsers(): Action {
     };
 }
 
+const UsersUrl = 'https://jsonplaceholder.typicode.com/users';
+const BadUsersUrl = 'https://jsonplaceholder.typicode.com/nonexistent';
+
 export function errorUsers(): AppThunkAction<any> {
-    return loadUsers('https://jsonplaceholder.typicode.com/nonexistent');
+    return loadUsers(BadUsersUrl);
 }
 
-export function loadUsers(url: string = 'https://jsonplaceholder.typicode.com/users'): AppThunkAction<any> {
+export function loadUsers(url: string = UsersUrl): AppThunkAction<any> {
     return (dispatch, getState) => {
         switch (getState().users.status) {
             case 'NotStarted':
             case 'Error':
                 dispatch(setUsers(Pending()));
-                setTimeout(() => {
-                    getPaginatedUsers(url)
-                        .then(usersPage => setUsers(Available({ values: usersPage.values, continuation: })))
-                        .then(response => dispatch(setUsers(Available(response.data))))
-                        .catch(error => dispatch(setUsers(Error(`HTTP Error ${error.response.status}`))));
-                }, 1000);
+                getPaginatedUsers(url)
+                    .then(usersPage => dispatch(setUsers(Available(Updateable(usersPage)))))
+                    .catch(error => dispatch(setUsers(Error(`HTTP Error ${error.response.status}`))));
         }
     }
 }
 
 export function loadMoreUsers(): AppThunkAction<any> {
     return (dispatch, getState) => {
-        const { users } = getState();
-        switch (users.status) {
-            case 'Available':
-                const offset = users.value.
+        const state = getState();
+        const { users } = state;
+
+        if (users.status === 'Available') {
+            // Can only do something if the first page is loaded
+            if (hasMoreUsers(state) && !isLoadingMoreUsers(state)) {
+                dispatch(updateUsers(Pending()));
+                getPaginatedUsers(UsersUrl)
+                    .then(nextPage => {
+                        const updatedUsers = mergePaginateResults(users.value.value, nextPage);
+                        dispatch(updateUsers(Available(updatedUsers)));
+                    })
+                    .catch(error => dispatch(updateUsers(Error(`HTTP Error ${error.response.status}`))));
+            }
         }
     }
-}
-
-// App State
-export interface IAppState {
-    users: Delayed<IPageableDelayed<IUser[], IUserPage>>
-}
-
-const InitialAppState : IAppState = {
-    users: NotStarted()
 }
 
 const AppReducer = (state: IAppState = InitialAppState, action: Action): IAppState => {
     switch (action.type) {
         case 'SET_USERS':
             return { ...state, ...{ users: action.users } };
-        case 'REMOVE_USER':
-            // Note that developers can't access the current user list (state.users.value)
-            // until its availability state is confirmed. This makes it apparent that
-            // other cases should be handled as well (what if we remove users while the
-            // network load is still pending?)
-            // Also of note, the status strings are autocompleted/type-checked
-            if (state.users.status === 'Available') {
-                const updatedUserList = state.users.value.filter(user => user.id === action.userId);
-                return { ...state, ...{ users: Available(updatedUserList) }};
-            }
+        case 'UPDATE_USERS':
+            // Could check for state.users.status === 'Available' if we want to avoid create on update
+            // Let's just allow it in this example case
+            return { ...state, ...{ users: Available(action.update) }};
     }
 
     return state;
