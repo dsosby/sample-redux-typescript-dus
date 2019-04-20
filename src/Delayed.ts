@@ -1,5 +1,3 @@
-import { values } from "@uifabric/utilities";
-
 export type ErrorMessage = string;
 export type DelayedError = ErrorMessage;
 
